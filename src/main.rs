@@ -18,7 +18,6 @@ fn main() -> Fallible<()> {
     let title_set = RegexSet::new(title_settings.keys()).unwrap();
     let mut ignore: HashMap<i64, Option<String>> = HashMap::new();
     let mut last_focused = None;
-    let mut last_focused_settings: Option<&BaseSettings> = None;
     let mut connection = Connection::new()?;
     for event in Connection::new()?.subscribe([EventType::Window])? {
         if let Event::Window(w) = event? {
@@ -67,25 +66,7 @@ fn main() -> Fallible<()> {
                 set_icon(id, &settings, &global_settings, &mut connection, focused)?;
             }
             if focused && Some(id) != last_focused {
-                if let Some(last_id) = last_focused {
-                    if let Some(last_settings) = last_focused_settings {
-                        if DEBUG {
-                            println!("id: {} lost focus", last_id);
-                        }
-                        set_icon(
-                            last_id,
-                            last_settings,
-                            &global_settings,
-                            &mut connection,
-                            false,
-                        )?;
-                    }
-                }
                 last_focused = Some(id);
-            }
-
-            if focused {
-                last_focused_settings = Some(&settings);
             }
 
             ignore.insert(id, ignore_matcher);
@@ -129,13 +110,8 @@ fn set_icon(
     settings: &BaseSettings,
     global_settings: &GlobalSettings,
     connection: &mut Connection,
-    focused: bool,
 ) -> Fallible<()> {
-    let color = if focused && global_settings.focused_color.is_some() {
-        global_settings.focused_color.as_ref().unwrap()
-    } else {
-        settings.color.as_ref().unwrap_or(&global_settings.color)
-    };
+    let color = settings.color.as_ref().unwrap_or(&global_settings.color);
     let icon = settings.icon.as_ref().unwrap_or(&global_settings.icon);
     let size = settings.size.as_ref().unwrap_or(&global_settings.size);
     let separator = &global_settings.separator;
