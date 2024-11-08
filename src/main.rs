@@ -120,7 +120,7 @@ fn set_icon(
     let separator = &global_settings.separator;
 
     connection.run_command(format!(
-        "[con_id={}] title_format \"<span color='{}' size='{}'>{}</span>{}{}%title\"",
+        "[con_id={}] title_format \"<span color='{}' size='{}'>{}</span> {}{}%title\"",
         id, color, size, icon, separator, prefix
     ))?;
     Ok(())
