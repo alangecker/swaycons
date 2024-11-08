@@ -28,6 +28,8 @@ fn main() -> Fallible<()> {
             };
             let focused = w.container.focused;
             let name = w.container.name.unwrap_or_default();
+            let pid = w.container.pid.unwrap_or_default();
+            let prefix = get_process_prefix(pid);
             let ignore_entry = ignore.entry(id).or_default();
             if DEBUG {
                 println!("id: {}, app_id: {}, name: {}", id, app_id, name);
@@ -63,7 +65,7 @@ fn main() -> Fallible<()> {
                 if DEBUG {
                     println!("setting icon for id: {}, focused: {}", id, focused);
                 }
-                set_icon(id, &settings, &global_settings, &mut connection, focused)?;
+                set_icon(id, &settings, &global_settings, prefix.as_str(), &mut connection)?;
             }
             if focused && Some(id) != last_focused {
                 last_focused = Some(id);
@@ -109,6 +111,7 @@ fn set_icon(
     id: i64,
     settings: &BaseSettings,
     global_settings: &GlobalSettings,
+    prefix: &str,
     connection: &mut Connection,
 ) -> Fallible<()> {
     let color = settings.color.as_ref().unwrap_or(&global_settings.color);
@@ -117,8 +120,34 @@ fn set_icon(
     let separator = &global_settings.separator;
 
     connection.run_command(format!(
-        "[con_id={}] title_format \"<span color='{}' size='{}'>{}</span>{}%title\"",
-        id, color, size, icon, separator
+        "[con_id={}] title_format \"<span color='{}' size='{}'>{}</span>{}{}%title\"",
+        id, color, size, icon, separator, prefix
     ))?;
     Ok(())
+}
+
+fn get_process_prefix(pid: i32) -> String {
+    let res = std::fs::read_to_string(format!("/proc/{}/cmdline", pid));
+    if !res.is_err() {
+        let cmdline = res.unwrap();
+
+        let parts = cmdline.split_whitespace();
+        for part in parts {
+            if let Some((key, value)) = part.split_once('=') {
+                if key == "--profile" {
+                    // element-desktop profile
+                    return format!("<i>{}</i>: ", value);
+                } else if key == "--user-data-dir" {
+                    // signal-desktop profile
+                    let name = value.split('-').last().unwrap_or_default();
+                    
+                    if !name.is_empty() {
+                        return format!("<i>{}</i>: ", name.trim_matches(char::from(0)));
+                    }
+                }
+            }
+        }
+        
+    }
+    return "".to_string();
 }
